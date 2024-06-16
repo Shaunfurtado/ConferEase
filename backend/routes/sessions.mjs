@@ -1,9 +1,11 @@
-// backend\routes\sessions.mjs:
+// backend\routes\sessions.mjs
 import express from 'express';
 import PocketBase from 'pocketbase';
-const router = express.Router();
+import Redis from 'ioredis';
 
+const router = express.Router();
 const pb = new PocketBase('http://127.0.0.1:8090');
+const redis = new Redis(); // Default settings
 
 // Admin credentials
 const adminEmail = 'shaunfurtado49@gmail.com';
@@ -21,13 +23,17 @@ async function authenticateAdmin() {
 }
 
 router.post('/create-session', async (req, res) => {
-    const { nickname } = req.body;
-    if (!nickname) {
-        return res.status(400).json({ error: 'Nickname is required' });
+    const { nickname, userId } = req.body;
+    if (!nickname || !userId) {
+        return res.status(400).json({ error: 'Nickname and user ID are required' });
     }
     try {
         await authenticateAdmin();
-        const record = await pb.collection('sessions').create({ nickname });
+        const record = await pb.collection('sessions').create({ nickname, userId });
+        
+        // Save creator ID in Redis
+        await redis.set(`session:${record.id}:creatorId`, userId);
+
         res.status(201).json({ sessionId: record.id });
     } catch (error) {
         console.error('Error creating session:', error);
@@ -35,7 +41,7 @@ router.post('/create-session', async (req, res) => {
     }
 });
 
-router.get('/:sessionId', async (req, res) => { // Added missing sessionId parameter
+router.get('/:sessionId', async (req, res) => {
     const { sessionId } = req.params;
     try {
         const record = await pb.collection('sessions').getOne(sessionId);
@@ -46,4 +52,4 @@ router.get('/:sessionId', async (req, res) => { // Added missing sessionId param
     }
 });
 
-export default router; // Ensure correct export
+export default router;
