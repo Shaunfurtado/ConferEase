@@ -1,7 +1,8 @@
+// frontend/src/pages/CreateSession.jsx
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { v4 as uuidv4 } from 'uuid'; // Import UUID for generating user IDs
+import { v4 as uuidv4 } from 'uuid';
 import io from 'socket.io-client';
 
 const CreateSession = () => {
@@ -21,7 +22,7 @@ const CreateSession = () => {
             const sessionId = response.data.sessionId;
             const url = `${window.location.origin}/session/${sessionId}`;
             setSessionUrl(url);
-            navigate(`/session/${sessionId}`);
+            navigate(`/session/${sessionId}`, { state: { userId, nickname } });
         } catch (error) {
             console.error('Error creating session', error);
         }

@@ -1,3 +1,4 @@
+//frontend\src\App.jsx
 import { Routes, Route } from 'react-router-dom';
 import CreateSession from './pages/CreateSession';
 import Session from './pages/Session';
