@@ -55,32 +55,33 @@ io.on('connection', (socket) => {
     socket.on('join-session', async ({ sessionId, clientId, nickname }) => {
         try {
             console.log(`Client ${clientId} joining session ${sessionId} with nickname ${nickname}`);
-
+    
             // Set the creatorId if this is the first client to join the session
             let creatorId = await redis.get(`session:${sessionId}:creatorId`);
             if (!creatorId) {
                 creatorId = clientId;
                 await redis.set(`session:${sessionId}:creatorId`, clientId);
-                console.log(`Creator ID for session ${sessionId} is set to ${clientId}`);
+                console.log(`Creator ID for session ${sessionId} is set to ${clientId} with Socket ID ${socket.id}`);
             }
-
+    
             if (!sessions[sessionId]) {
                 sessions[sessionId] = [];
             }
             sessions[sessionId].push(clientId);
             socket.join(sessionId);
-
+    
             await redis.set(`session:${sessionId}:nickname:${clientId}`, nickname);
-
+            await redis.set(`session:${sessionId}:socketId:${clientId}`, socket.id); // Add socket.id to Redis
+    
             redisSub.subscribe(sessionId);
-
+    
             const clients = await getSessionClients(sessionId);
             io.to(sessionId).emit('client-update', clients);
             io.to(sessionId).emit('notification', `${nickname} has joined the session.`);
         } catch (error) {
             console.error('Error joining session:', error);
         }
-    });
+    });    
 
     socket.on('offer', (data) => {
         const { sessionId, offer } = data;

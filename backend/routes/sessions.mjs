@@ -50,16 +50,12 @@ router.post('/create-session', async (req, res) => {
 });
 
 router.post('/join-session', async (req, res) => {
-    const { sessionId, userId, nickname } = req.body;
-    if (!sessionId || !userId || !nickname) {
-        return res.status(400).json({ error: 'Session ID, User ID, and Nickname are required' });
+    const { sessionId, userId, nickname, clientId } = req.body;
+    if (!sessionId || !userId || !nickname || !clientId) {
+        return res.status(400).json({ error: 'Session ID, User ID, Nickname, and Client ID are required' });
     }
     try {
         await authenticateAdmin();
-
-        // Generate clientId in the desired format
-        const clientId = uuidv4();
-        console.log(`Generated clientId: ${clientId}`);
 
         // Check if creatorId exists in Redis
         let creatorId = await redis.get(`session:${sessionId}:creatorId`);
@@ -75,6 +71,38 @@ router.post('/join-session', async (req, res) => {
         res.status(200).json({ creatorId, clientId }); // Return clientId and creatorId to frontend
     } catch (error) {
         console.error('Error joining session:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.post('/end-call', async (req, res) => {
+    const { sessionId, userId } = req.body;
+    if (!sessionId || !userId) {
+        return res.status(400).json({ error: 'Session ID and User ID are required' });
+    }
+    try {
+        await authenticateAdmin();
+
+        // Fetch creatorId from Redis
+        const creatorId = await redis.get(`session:${sessionId}:creatorId`);
+        
+        if (creatorId === userId) {
+            io.to(sessionId).emit('end-call');
+            delete sessions[sessionId];
+
+            // Delete all associated session data in Redis
+            const keys = await redis.keys(`session:${sessionId}:nickname:*`);
+            await redis.del(...keys);
+            await redis.del(`session:${sessionId}:creatorId`);
+
+            console.log(`Call ended for session ${sessionId} by creator ${creatorId}.`);
+            res.status(200).json({ message: `Call ended for session ${sessionId} by creator ${creatorId}.` });
+        } else {
+            console.log(`User ${userId} is not the creator of session ${sessionId}. End call denied.`);
+            res.status(403).json({ error: `User ${userId} is not the creator of session ${sessionId}. End call denied.` });
+        }
+    } catch (error) {
+        console.error('Error ending call:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });

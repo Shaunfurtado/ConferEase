@@ -1,4 +1,3 @@
-// frontend\src\pages\Session.jsx
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import io from 'socket.io-client';
@@ -10,7 +9,7 @@ const Session = () => {
     const [nickname, setNickname] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(true);
     const [stream, setStream] = useState(null);
-    const [isCreator, setIsCreator] = useState(false);
+    const [isCreator, setIsCreator] = useState(false); // State to track if current client is the creator
     const [clientId, setClientId] = useState('');
     const [clients, setClients] = useState([]);
     const [messages, setMessages] = useState([]);
@@ -32,6 +31,7 @@ const Session = () => {
             socketRef.current.on('end-call', handleEndCall); // Add event listener
             socketRef.current.on('chat-message', handleReceiveMessage);
             socketRef.current.on('client-update', handleClientUpdate);
+            socketRef.current.on('client-joined', handleClientJoined); // Add event listener for client joining
 
             const id = uuidv4();
             setClientId(id);
@@ -57,24 +57,34 @@ const Session = () => {
     }, [sessionId]);
 
     useEffect(() => {
-        // Fetch session data to determine if the current user is the creator
         if (clientId) {
             console.log(`Fetching session data for session: ${sessionId}, clientId: ${clientId}`);
             fetch(`/api/sessions/${sessionId}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                    
+                })
                 .then(data => {
-                    setCreatorNickname(data.creatorNickname); // Assuming creatorNickname is stored in the session data
+                    console.log(data);
                     console.log(`Fetched session data: `, data);
+                    setCreatorNickname(data.creatorNickname);
+                    console.log(`Nickname of the creator: ${data.creatorNickname}`);
                     console.log(`Current client ID: ${clientId}`);
                     console.log(`Creator ID: ${data.creatorId}`);
-                    if (data.creatorId === clientId) { // Check if current client ID matches creator ID
+                    if (data.creatorId === clientId) {
                         console.log("This client is the creator of the session.");
                         setIsCreator(true);
                     } else {
                         console.log("This client is not the creator of the session.");
                     }
                 })
-                .catch(error => console.error('Error fetching session data:', error));
+                .catch(error => {
+                    console.error('Error fetching session data:', error);
+                    // Handle error state or display a message to the user
+                });
         }
     }, [clientId, sessionId]);
 
@@ -131,7 +141,7 @@ const Session = () => {
         socketRef.current.emit('offer', { sessionId, offer });
     };
 
-    const handleEndCall = () => {
+    const handleEndCall = async () => {
         console.log("Ending call...");
         if (peerRef.current) {
             peerRef.current.close();
@@ -139,9 +149,26 @@ const Session = () => {
         localVideoRef.current.srcObject = null;
         remoteVideoRef.current.srcObject = null;
         setStream(null);
-        socketRef.current.emit('end-call', { sessionId, userId: clientId });
-        setIsCreator(false); // Reset creator state after ending call
-        console.log(`${creatorNickname} has ended the call.`);
+        
+        try {
+            const response = await fetch('/api/sessions/end-call', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ sessionId, userId: clientId }), // Adjust userId or clientId as needed
+            });
+    
+            if (!response.ok) {
+                throw new Error('Failed to end call');
+            }
+    
+            setIsCreator(false); // Reset creator state after ending call
+            console.log(`${creatorNickname} has ended the call.`);
+        } catch (error) {
+            console.error('Error ending call:', error);
+            // Handle error state or display a message to the user
+        }
     };
 
     const handleLeaveCall = () => {
@@ -176,17 +203,19 @@ const Session = () => {
         setClients(updatedClients);
     };
 
+    const handleClientJoined = (clientInfo) => {
+        console.log(`Client joined: ID=${clientInfo.clientId}, Creator ID=${clientInfo.creatorId}`);
+        setClients((prevClients) => [...prevClients, clientInfo]);
+    };
+
     const handleCopyUrl = () => {
         navigator.clipboard.writeText(sessionUrl);
         alert('Session URL copied to clipboard');
     };
 
     const joinSession = async () => {
-        const id = uuidv4();
-        setClientId(id);
-
-        socketRef.current.emit('join-session', { sessionId, clientId: id, nickname });
-
+        socketRef.current.emit('join-session', { sessionId, clientId, nickname });
+    
         setIsModalOpen(false);
     };
 
@@ -225,8 +254,8 @@ const Session = () => {
                     </div>
                     <video ref={localVideoRef} autoPlay playsInline className="w-full mb-4 border rounded"></video>
                     <div className="flex flex-col items-center">
-                        {clients.filter(client => client.id !== clientId).map(client => (
-                            <div key={client.id}>
+                        {clients.filter(client => client.clientId !== clientId).map(client => (
+                            <div key={client.clientId}>
                                 <strong>Client:</strong> {client.nickname}
                                 <video ref={remoteVideoRef} autoPlay playsInline className="w-full mb-4 border rounded"></video>
                             </div>
@@ -241,21 +270,23 @@ const Session = () => {
                 </button>
                 <button
                     onClick={handleCopyUrl}
-                    className="bg-green-500 text-white py-2 px-4 rounded w-full mb-4"
+                    className
+                    ="bg-green-500 text-white py-2 px-4 rounded w-full mb-4"
                 >
                     Copy Session URL
                 </button>
-                {isCreator ? (
+                {isCreator && (
                     <button
                         onClick={handleEndCall}
-                        className="bg-red-500 text-white py-2 px-4 rounded w-full"
+                        className="bg-red-500 text-white py-2 px-4 rounded w-full mb-4"
                     >
                         End Call
                     </button>
-                ) : (
+                )}
+                {!isCreator && (
                     <button
                         onClick={handleLeaveCall}
-                        className="bg-gray-500 text-white py-2 px-4 rounded w-full"
+                        className="bg-gray-500 text-white py-2 px-4 rounded w-full mb-4"
                     >
                         Leave Call
                     </button>
