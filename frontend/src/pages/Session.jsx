@@ -9,7 +9,7 @@ const Session = () => {
     const [nickname, setNickname] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(true);
     const [stream, setStream] = useState(null);
-    const [isCreator, setIsCreator] = useState(false); // State to track if current client is the creator
+    const [isCreator, setIsCreator] = useState(false);
     const [clientId, setClientId] = useState('');
     const [clients, setClients] = useState([]);
     const [messages, setMessages] = useState([]);
@@ -28,14 +28,12 @@ const Session = () => {
             socketRef.current.on('offer', handleReceiveOffer);
             socketRef.current.on('answer', handleReceiveAnswer);
             socketRef.current.on('ice-candidate', handleNewICECandidateMsg);
-            socketRef.current.on('end-call', handleEndCall); // Add event listener
+            socketRef.current.on('end-call', handleEndCall);
             socketRef.current.on('chat-message', handleReceiveMessage);
             socketRef.current.on('client-update', handleClientUpdate);
-            socketRef.current.on('client-joined', handleClientJoined); // Add event listener for client joining
 
             const id = uuidv4();
             setClientId(id);
-            console.log(`Client ID initialized: ${id}`);
         };
 
         const startStream = async () => {
@@ -56,38 +54,6 @@ const Session = () => {
         };
     }, [sessionId]);
 
-    useEffect(() => {
-        if (clientId) {
-            console.log(`Fetching session data for session: ${sessionId}, clientId: ${clientId}`);
-            fetch(`/api/sessions/${sessionId}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                    
-                })
-                .then(data => {
-                    console.log(data);
-                    console.log(`Fetched session data: `, data);
-                    setCreatorNickname(data.creatorNickname);
-                    console.log(`Nickname of the creator: ${data.creatorNickname}`);
-                    console.log(`Current client ID: ${clientId}`);
-                    console.log(`Creator ID: ${data.creatorId}`);
-                    if (data.creatorId === clientId) {
-                        console.log("This client is the creator of the session.");
-                        setIsCreator(true);
-                    } else {
-                        console.log("This client is not the creator of the session.");
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching session data:', error);
-                    // Handle error state or display a message to the user
-                });
-        }
-    }, [clientId, sessionId]);
-
     const handleReceiveOffer = async (offer) => {
         if (!peerRef.current) createPeer();
         await peerRef.current.setRemoteDescription(new RTCSessionDescription(offer));
@@ -102,16 +68,12 @@ const Session = () => {
 
     const handleNewICECandidateMsg = async (msg) => {
         try {
-            if (!peerRef.current) {
-                createPeer();
-            }
-            const candidate = new RTCIceCandidate(msg);
-            await peerRef.current.addIceCandidate(candidate);
+            await peerRef.current.addIceCandidate(new RTCIceCandidate(msg));
         } catch (error) {
             console.error('Error adding received ice candidate', error);
         }
     };
-    
+
     const createPeer = () => {
         const peer = new RTCPeerConnection({
             iceServers: [
@@ -141,38 +103,18 @@ const Session = () => {
         socketRef.current.emit('offer', { sessionId, offer });
     };
 
-    const handleEndCall = async () => {
-        console.log("Ending call...");
+    const handleEndCall = () => {
         if (peerRef.current) {
             peerRef.current.close();
         }
         localVideoRef.current.srcObject = null;
         remoteVideoRef.current.srcObject = null;
         setStream(null);
-        
-        try {
-            const response = await fetch('/api/sessions/end-call', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ sessionId, userId: clientId }), // Adjust userId or clientId as needed
-            });
-    
-            if (!response.ok) {
-                throw new Error('Failed to end call');
-            }
-    
-            setIsCreator(false); // Reset creator state after ending call
-            console.log(`${creatorNickname} has ended the call.`);
-        } catch (error) {
-            console.error('Error ending call:', error);
-            // Handle error state or display a message to the user
-        }
+        socketRef.current.emit('end-call', { sessionId, userId: clientId });
+        setIsCreator(false); // Reset creator state after ending call
     };
 
     const handleLeaveCall = () => {
-        console.log("Leaving call...");
         if (peerRef.current) {
             peerRef.current.close();
         }
@@ -203,19 +145,28 @@ const Session = () => {
         setClients(updatedClients);
     };
 
-    const handleClientJoined = (clientInfo) => {
-        console.log(`Client joined: ID=${clientInfo.clientId}, Creator ID=${clientInfo.creatorId}`);
-        setClients((prevClients) => [...prevClients, clientInfo]);
-    };
-
     const handleCopyUrl = () => {
         navigator.clipboard.writeText(sessionUrl);
         alert('Session URL copied to clipboard');
     };
 
     const joinSession = async () => {
-        socketRef.current.emit('join-session', { sessionId, clientId, nickname });
-    
+        const id = uuidv4();
+        setClientId(id);
+
+        socketRef.current.emit('join-session', { sessionId, clientId: id, nickname });
+
+        // Fetch session data to determine if the current user is the creator
+        fetch(`/api/sessions/${sessionId}`)
+            .then(response => response.json())
+            .then(data => {
+                setCreatorNickname(data.creatorNickname); // Assuming creatorNickname is stored in the session data
+                if (data.creatorId === id) {
+                    setIsCreator(true);
+                }
+            })
+            .catch(error => console.error('Error fetching session data:', error));
+
         setIsModalOpen(false);
     };
 
@@ -250,12 +201,12 @@ const Session = () => {
                 <h1 className="text-2xl font-bold mb-4">Session: {sessionId}</h1>
                 <div className="flex flex-col items-center">
                     <div>
-                        <strong>Admin:</strong> {creatorNickname}
+                        <strong>Admin:</strong> {clients.find(client => client.isCreator)?.nickname}
                     </div>
                     <video ref={localVideoRef} autoPlay playsInline className="w-full mb-4 border rounded"></video>
                     <div className="flex flex-col items-center">
-                        {clients.filter(client => client.clientId !== clientId).map(client => (
-                            <div key={client.clientId}>
+                        {clients.filter(client => client.id !== clientId).map(client => (
+                            <div key={client.id}>
                                 <strong>Client:</strong> {client.nickname}
                                 <video ref={remoteVideoRef} autoPlay playsInline className="w-full mb-4 border rounded"></video>
                             </div>
@@ -270,15 +221,15 @@ const Session = () => {
                 </button>
                 <button
                     onClick={handleCopyUrl}
-                    className
-                    ="bg-green-500 text-white py-2 px-4 rounded w-full mb-4"
+                    className="bg-green-500 text-white py-2 px
+                    4 rounded w-full mb-4"
                 >
                     Copy Session URL
                 </button>
-                {isCreator && (
+                {isCreator && creatorNickname && (
                     <button
                         onClick={handleEndCall}
-                        className="bg-red-500 text-white py-2 px-4 rounded w-full mb-4"
+                        className="bg-red-500 text-white py-2 px-4 rounded w-full"
                     >
                         End Call
                     </button>
@@ -286,7 +237,7 @@ const Session = () => {
                 {!isCreator && (
                     <button
                         onClick={handleLeaveCall}
-                        className="bg-gray-500 text-white py-2 px-4 rounded w-full mb-4"
+                        className="bg-red-500 text-white py-2 px-4 rounded w-full"
                     >
                         Leave Call
                     </button>
