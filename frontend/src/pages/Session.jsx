@@ -28,7 +28,7 @@ const Session = () => {
 
     useEffect(() => {
         const initSocket = () => {
-            socketRef.current = io('https://m4otjg3lds.loclx.io/');
+            socketRef.current = io('http://localhost:5000');
             
             socketRef.current.on('offer', handleReceiveOffer);
             socketRef.current.on('answer', handleReceiveAnswer);
@@ -92,7 +92,11 @@ const Session = () => {
     const createPeer = () => {
         const peer = new RTCPeerConnection({
             iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
             ],
         });
     
@@ -121,7 +125,6 @@ const Session = () => {
         };
     
         localStream.getTracks().forEach(track => peer.addTrack(track, localStream));
-    
         peerRef.current = peer;
     };
 
@@ -141,6 +144,8 @@ const Session = () => {
         setStream(null);
         socketRef.current.emit('end-call', { sessionId, userId: clientId });
         setIsCreator(false); // Reset creator state after ending call
+        window.location.href = '/';
+        window.location.reload();
     };
 
     const handleLeaveCall = () => {
@@ -152,6 +157,8 @@ const Session = () => {
         remoteVideoRef.current.srcObject = null;
         setStream(null);
         setIsCreator(false);
+        window.location.href = '/';
+        window.location.reload();
     };
 
     const handleSendMessage = () => {
@@ -173,16 +180,19 @@ const Session = () => {
     const handleClientUpdate = (updatedClients) => {
         setClients(updatedClients);
     };
-
+    
     const handleCopyUrl = () => {
-        navigator.clipboard.writeText(sessionUrl);
+        const joinUrl = `${sessionUrl}`;
+        const message = `Join this session: ${joinUrl}`;
+        const data = `${nickname} has invited you to join the session.\n\n Session ID is : ${sessionId}\n\n${message}`;
+        navigator.clipboard.writeText(data);
         alert('Session URL copied to clipboard');
     };
 
     const joinSession = async () => {
         const id = uuidv4();
         setClientId(id);
-
+        setIsCreator(true);
         socketRef.current.emit('join-session', { sessionId, clientId: id, nickname });
 
         // Fetch session data to determine if the current user is the creator
@@ -190,6 +200,7 @@ const Session = () => {
             .then(response => response.json())
             .then(data => {
                 setCreatorNickname(data.creatorNickname); // Assuming creatorNickname is stored in the session data
+                 // Assuming creatorId is stored in the session data (data.creatorId === id
                 if (data.creatorId === id) {
                     setIsCreator(true);
                 }
@@ -228,7 +239,7 @@ const Session = () => {
 
             {/* Video Call Section */}
 <div className="bg-white p-6 rounded shadow-md w-full md:w-3/4 max-w-md">
-<h1 className="text-2xl font-bold mb-4">Session: {sessionId}</h1>
+<h1 className="text-2xl font-bold mb-4">Session: {sessionId.nickname}</h1>
 <div className="flex flex-col items-center space-y-4">
         {/* Local Video */}
         <div className="w-full">
@@ -245,7 +256,9 @@ const Session = () => {
         </div>
         
         {/* Remote Videos */}
-        {clients.filter(client => client.id !== clientId && client.stream).map(client => (
+    {clients
+        .filter((client, index) => client.id !== clientId && index !== 0)
+        .map(client => (
             <div key={client.id} className="w-full">
                 <div className="text-lg font-semibold mb-2">
                     {client.nickname}
@@ -260,7 +273,7 @@ const Session = () => {
                 ></video>
             </div>
         ))}
-    </div>
+</div>
     
     <div className="mt-6 space-y-4">
         <button 

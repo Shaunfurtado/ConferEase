@@ -3,14 +3,14 @@ import express from 'express';
 import http from 'http';
 import { Server as SocketIo } from 'socket.io';
 import cors from 'cors';
-import sessionRoutes from './routes/sessions.mjs'; // Ensure correct import
+import sessionRoutes from './routes/sessions.mjs'; 
 import Redis from 'ioredis';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/sessions', sessionRoutes); // Ensure this is correctly defined
+app.use('/api/sessions', sessionRoutes);
 
 const server = http.createServer(app);
 const io = new SocketIo(server, {
@@ -57,6 +57,13 @@ io.on('connection', (socket) => {
 
             // Store nickname in Redis
             await redis.set(`session:${sessionId}:nickname:${clientSocketId}`, nickname);
+            // Save the nickname as the creatorId when the first client joins
+            if (sessions[sessionId].length === 1) {
+                await Promise.all([
+                    redis.set(`session:${sessionId}:creatorId`, clientSocketId),
+                    pocketbase.set(`session:${sessionId}:creatorId`, clientSocketId)
+                ]);
+            }
 
             // Subscribe to Redis channel for the session
             redisSub.subscribe(sessionId);

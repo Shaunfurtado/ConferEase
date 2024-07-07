@@ -34,11 +34,10 @@ router.post('/create-session', async (req, res) => {
         const record = await pb.collection('sessions').create({ nickname, userId });
 
         // Save creator ID and nickname in Redis
-        await redis.set(`session:${record.id}:creatorId`, userId);
+        
         await redis.set(`session:${record.id}:nickname:${userId}`, nickname);
-
-        // Store creatorId in PocketBase
-        await pb.collection('sessions').update(record.id, { creatorId: userId });
+        // await redis.set(`session:${record.id}:creatorId`, userId);
+        // await pb.collection('sessions').update(record.id, { creatorId: userId });
 
         res.status(201).json({ sessionId: record.id });
     } catch (error) {
