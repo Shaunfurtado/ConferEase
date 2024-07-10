@@ -1,4 +1,4 @@
-// frontend/src/pages/CreateSession.jsx
+// frontend\src\pages\CreateSession.jsx
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -7,12 +7,12 @@ import io from 'socket.io-client';
 import * as Form from '@radix-ui/react-form';
 import * as Separator from '@radix-ui/react-separator';
 import { Button } from '@radix-ui/themes';
-import { FiCopy, FiPlus, FiLogIn } from 'react-icons/fi';
+import { FiPlus, FiLogIn } from 'react-icons/fi';
 
 const CreateSession = () => {
     const [nickname, setNickname] = useState('');
-    const [sessionUrl, setSessionUrl] = useState('');
     const [joinSessionId, setJoinSessionId] = useState('');
+    const [sessionType, setSessionType] = useState('1to1'); // Default session type
     const navigate = useNavigate();
     const socketRef = useRef();
 
@@ -24,26 +24,54 @@ const CreateSession = () => {
         event.preventDefault();
         try {
             const userId = uuidv4();
-            const response = await axios.post('http://localhost:5000/api/sessions/create-session', { nickname, userId });
+            const response = await axios.post('http://localhost:5000/api/sessions/create-session', {
+                nickname,
+                userId,
+                sessionType,
+                status: 'active' // Set status as active by default
+            });
             const sessionId = response.data.sessionId;
-            const url = `${window.location.origin}/session/${sessionId}`;
-            setSessionUrl(url);
             navigate(`/session/${sessionId}`, { state: { userId, nickname } });
         } catch (error) {
             console.error('Error creating session', error);
         }
     };
 
-    const handleJoinSession = (event) => {
+    const handleJoinSession = async (event) => {
         event.preventDefault();
         if (joinSessionId) {
-            navigate(`/session/${joinSessionId}`, { state: { nickname } });
+            try {
+                const userId = uuidv4();
+                const response = await axios.post(`http://localhost:5000/api/sessions/${joinSessionId}/join`, { 
+                    userId, 
+                    nickname 
+                });
+                
+                if (response.status === 200) {
+                    const { creatorId } = response.data;
+                    const isCreator = creatorId === userId;
+                    
+                    socketRef.current.emit('join-session', { 
+                        sessionId: joinSessionId, 
+                        clientId: userId, 
+                        nickname 
+                    });
+                    
+                    navigate(`/session/${joinSessionId}`, { 
+                        state: { 
+                            userId, 
+                            nickname, 
+                            isCreator 
+                        } 
+                    });
+                } else {
+                    throw new Error('Failed to join session');
+                }
+            } catch (error) {
+                console.error('Error joining session', error);
+                alert('Error joining session. Please try again.');
+            }
         }
-    };
-
-    const handleCopyUrl = () => {
-        navigator.clipboard.writeText(sessionUrl);
-        alert('Session URL copied to clipboard');
     };
 
     return (
@@ -63,29 +91,37 @@ const CreateSession = () => {
                             />
                         </Form.Control>
                     </Form.Field>
+                    <Form.Field name="sessionType">
+                        <Form.Label>Session Type</Form.Label>
+                        <Form.Control asChild>
+                            <div>
+                                <label>
+                                    <input
+                                        type="radio"
+                                        value="1to1"
+                                        checked={sessionType === '1to1'}
+                                        onChange={() => setSessionType('1to1')}
+                                    />
+                                    1 to 1 Session
+                                </label>
+                                <label style={{ marginLeft: '10px' }}>
+                                    <input
+                                        type="radio"
+                                        value="conference"
+                                        checked={sessionType === 'conference'}
+                                        onChange={() => setSessionType('conference')}
+                                    />
+                                    Conference Mode
+                                </label>
+                            </div>
+                        </Form.Control>
+                    </Form.Field>
                     <Form.Submit asChild>
                         <Button style={{ display: 'flex', alignItems: 'center' }}>
                             <FiPlus style={{ marginRight: '5px' }} /> Create Session
                         </Button>
                     </Form.Submit>
                 </Form.Root>
-                
-                {sessionUrl && (
-                    <div style={{ marginTop: '20px' }}>
-                        <p>Share this URL to join the session:</p>
-                        <div style={{ display: 'flex', alignItems: 'center', marginTop: '10px' }}>
-                            <input
-                                type="text"
-                                value={sessionUrl}
-                                readOnly
-                                style={{ flex: 1, padding: '8px', marginRight: '10px' }}
-                            />
-                            <Button onClick={handleCopyUrl} style={{ display: 'flex', alignItems: 'center' }}>
-                                <FiCopy style={{ marginRight: '5px' }} /> Copy URL
-                            </Button>
-                        </div>
-                    </div>
-                )}
             </div>
 
             <Separator.Root style={{ height: '1px', backgroundColor: 'gray', margin: '20px 0' }} />

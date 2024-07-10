@@ -1,17 +1,7 @@
-// frontend\src\components\ChatSection.jsx
-import { useState } from 'react';
+import React from 'react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 
-const ChatSection = ({ messages, nickname, onSendMessage }) => {
-    const [newMessage, setNewMessage] = useState('');
-
-    const handleSendMessage = () => {
-        if (newMessage.trim() === '') return;
-
-        onSendMessage(newMessage.trim());
-        setNewMessage('');
-    };
-
+const ChatComponent = ({ messages, newMessage, setNewMessage, handleSendMessage, nickname }) => {
     return (
         <div className="bg-gray-100 p-4 rounded shadow-md w-full md:w-1/4 max-w-md">
             <h2 className="text-xl font-bold mb-4">Chat</h2>
@@ -59,4 +49,4 @@ const ChatSection = ({ messages, nickname, onSendMessage }) => {
     );
 };
 
-export default ChatSection;
+export default ChatComponent;
