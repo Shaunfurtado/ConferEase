@@ -4,12 +4,12 @@ import PocketBase from 'pocketbase';
 import Redis from 'ioredis';
 
 const router = express.Router();
-const pb = new PocketBase('http://127.0.0.1:8090');
-const redis = new Redis(); // Default settings
+const pb = new PocketBase('https://conferease.pockethost.io');
+const redis = new Redis({ host: process.env.REDIS_HOST || 'redis', port: process.env.REDIS_PORT || 6379 });
 
 // Admin credentials
-const adminEmail = 'shaunfurtado49@gmail.com';
-const adminPassword = 'Yamaharmax12';
+const adminEmail = 'shaunf1801@gmail.com';
+const adminPassword = 'vWgm4fuhpssyYJL';
 
 // Authenticate admin
 async function authenticateAdmin() {

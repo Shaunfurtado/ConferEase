@@ -21,12 +21,12 @@ const io = new SocketIo(server, {
     }
 });
 
-const redis = new Redis();
-const redisSub = new Redis(); // Separate instance for subscribing to Redis channels
+const redis = new Redis({ host: process.env.REDIS_HOST || 'redis', port: process.env.REDIS_PORT || 6379 });
+const redisSub = new Redis({ host: process.env.REDIS_HOST || 'redis', port: process.env.REDIS_PORT || 6379 });
 
-const pb = new PocketBase('http://127.0.0.1:8090');
-const adminEmail = 'shaunfurtado49@gmail.com';
-const adminPassword = 'Yamaharmax12';
+const pb = new PocketBase('https://conferease.pockethost.io');
+const adminEmail = 'shaunf1801@gmail.com';
+const adminPassword = 'vWgm4fuhpssyYJL';
 pb.autoCancellation(false); // Disable auto-cancellation
 pb.timeout = 30000; // Set timeout to 30 seconds (adjust as needed)
 
