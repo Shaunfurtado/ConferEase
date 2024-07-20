@@ -1,3 +1,4 @@
+// frontend\src\components\useWebRTC.js
 import { useRef, useEffect, useState } from 'react';
 
 const useWebRTC = (socketRef, sessionId, clientId, localStream) => {
@@ -84,6 +85,8 @@ const useWebRTC = (socketRef, sessionId, clientId, localStream) => {
         }
         setRemoteStream(null);
         socketRef.current.emit('end-call', { sessionId, userId: clientId });
+        window.location.href = '/';
+        window.location.reload();
     };
 
     const handleLeaveCall = () => {
@@ -92,6 +95,8 @@ const useWebRTC = (socketRef, sessionId, clientId, localStream) => {
         }
         setRemoteStream(null);
         socketRef.current.emit('leave-call', { sessionId });
+        window.location.href = '/';
+        window.location.reload();
     };
 
     return { peerRef, remoteStream, handleStartCall, handleEndCall, handleLeaveCall };

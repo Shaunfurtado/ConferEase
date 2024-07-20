@@ -1,18 +1,16 @@
-// frontend\src\pages\CreateSession.jsx
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import io from 'socket.io-client';
-import * as Form from '@radix-ui/react-form';
-import * as Separator from '@radix-ui/react-separator';
-import { Button } from '@radix-ui/themes';
 import { FiPlus, FiLogIn } from 'react-icons/fi';
+import { IoIosCloseCircleOutline } from 'react-icons/io';
 
 const CreateSession = () => {
     const [nickname, setNickname] = useState('');
     const [joinSessionId, setJoinSessionId] = useState('');
-    const [sessionType, setSessionType] = useState('1to1'); // Default session type
+    const [sessionType, setSessionType] = useState('1to1'); 
+    const [alertMessage, setAlertMessage] = useState(null);
     const navigate = useNavigate();
     const socketRef = useRef();
 
@@ -28,11 +26,12 @@ const CreateSession = () => {
                 nickname,
                 userId,
                 sessionType,
-                status: 'active' // Set status as active by default
+                status: 'active'
             });
             const sessionId = response.data.sessionId;
             navigate(`/session/${sessionId}`, { state: { userId, nickname } });
         } catch (error) {
+            setAlertMessage('Error creating session. Please try again.');
             console.error('Error creating session', error);
         }
     };
@@ -42,113 +41,179 @@ const CreateSession = () => {
         if (joinSessionId) {
             try {
                 const userId = uuidv4();
-                const response = await axios.post(`http://localhost:5000/api/sessions/${joinSessionId}/join`, { 
-                    userId, 
-                    nickname 
+                console.log('Joining session with userId:', userId, 'and nickname:', nickname);
+    
+                socketRef.current.emit('join-session', { sessionId: joinSessionId, clientId: userId, nickname }, (response) => {
+                    console.log('Socket join-session response:', response);
+                    if (response.success) {
+                        navigate(`/session/${joinSessionId}`, { 
+                            state: { 
+                                userId, 
+                                nickname, 
+                                isCreator: response.isCreator 
+                            } 
+                        });
+                    } else {
+                        setAlertMessage(response.message);
+                        if (response.message === 'This session is full') {
+                            window.location.href = '/';
+                        }
+                    }
                 });
-                
-                if (response.status === 200) {
-                    const { creatorId } = response.data;
-                    const isCreator = creatorId === userId;
-                    
-                    socketRef.current.emit('join-session', { 
-                        sessionId: joinSessionId, 
-                        clientId: userId, 
-                        nickname 
-                    });
-                    
-                    navigate(`/session/${joinSessionId}`, { 
-                        state: { 
-                            userId, 
-                            nickname, 
-                            isCreator 
-                        } 
-                    });
-                } else {
-                    throw new Error('Failed to join session');
-                }
             } catch (error) {
-                console.error('Error joining session', error);
-                alert('Error joining session. Please try again.');
+                setAlertMessage('Error joining session. Please try again.');
+                console.error('Error joining session:', error);
             }
+        } else {
+            setAlertMessage('Please provide a session ID.');
         }
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: '20px' }}>
-            <div style={{ flex: 1, marginBottom: '20px' }}>
-                <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' }}>Create a Session</h1>
-                <Form.Root onSubmit={handleCreateSession}>
-                    <Form.Field name="nickname">
-                        <Form.Label>Nickname</Form.Label>
-                        <Form.Control asChild>
-                            <input
-                                type="text"
-                                value={nickname}
-                                onChange={(e) => setNickname(e.target.value)}
-                                placeholder="Enter your nickname"
-                                style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
-                            />
-                        </Form.Control>
-                    </Form.Field>
-                    <Form.Field name="sessionType">
-                        <Form.Label>Session Type</Form.Label>
-                        <Form.Control asChild>
-                            <div>
-                                <label>
-                                    <input
-                                        type="radio"
-                                        value="1to1"
-                                        checked={sessionType === '1to1'}
-                                        onChange={() => setSessionType('1to1')}
-                                    />
-                                    1 to 1 Session
-                                </label>
-                                <label style={{ marginLeft: '10px' }}>
-                                    <input
-                                        type="radio"
-                                        value="conference"
-                                        checked={sessionType === 'conference'}
-                                        onChange={() => setSessionType('conference')}
-                                    />
-                                    Conference Mode
-                                </label>
+        <section className="bg-white min-h-screen flex flex-col">
+            <div className="flex flex-col lg:flex-row lg:min-h-screen">
+                <div className="relative flex items-end bg-gray-900 lg:w-5/12 xl:w-6/12">
+                    <img
+                        alt="Background"
+                        src="https://images.unsplash.com/photo-1617195737496-bc30194e3a19?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=870&q=80"
+                        className="absolute inset-0 h-full w-full object-cover opacity-80"
+                    />
+                    <div className="relative p-12 text-white">
+                        <h2 className="text-2xl font-bold sm:text-3xl md:text-4xl">Anonymous Conference Platform</h2>
+                        <p className="mt-4 text-white/90">
+                            Lorem, ipsum dolor sit amet consectetur adipisicing elit. Eligendi nam dolorum aliquam,
+                            quibusdam aperiam voluptatum.
+                        </p>
+                    </div>
+                </div>
+                <main className="flex-1 flex items-center justify-center p-8 sm:px-12 lg:w-7/12 xl:w-6/12">
+                    <div className="w-full max-w-xl lg:max-w-3xl">
+                        {alertMessage && (
+                            <div role="alert" className="rounded-xl border border-gray-100 bg-white p-4 mb-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="flex-1">
+                                        <strong className="block font-medium text-gray-900">Alert</strong>
+                                        <p className="mt-1 text-sm text-gray-700">{alertMessage}</p>
+                                        <div className="mt-4 flex gap-2">
+                                            <a
+                                                href="#"
+                                                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
+                                                onClick={() => setAlertMessage(null)}
+                                            >
+                                                <span className="text-sm">Ok</span>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        className="text-gray-500 transition hover:text-gray-600" 
+                                        onClick={() => setAlertMessage(null)}
+                                    >
+                                        <span className="sr-only">Dismiss popup <IoIosCloseCircleOutline /></span>
+                                        <IoIosCloseCircleOutline />
+                                    </button>
+                                </div>
                             </div>
-                        </Form.Control>
-                    </Form.Field>
-                    <Form.Submit asChild>
-                        <Button style={{ display: 'flex', alignItems: 'center' }}>
-                            <FiPlus style={{ marginRight: '5px' }} /> Create Session
-                        </Button>
-                    </Form.Submit>
-                </Form.Root>
+                        )}
+                        <form className="space-y-8">
+                            {/* Create a Session */}
+                            <div>
+                                <h1 className="text-2xl font-bold mb-6">Create a Session</h1>
+                                <div className="space-y-6">
+                                    <div>
+                                        <label
+                                            htmlFor="nickname"
+                                            className="relative block overflow-hidden rounded-md border border-gray-200 px-3 pt-3 shadow-sm focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600"
+                                        >
+                                            <input
+                                                type="text"
+                                                id="nickname"
+                                                value={nickname}
+                                                onChange={(e) => setNickname(e.target.value)}
+                                                placeholder="Enter the Session Name"
+                                                className="peer h-8 w-full border-none bg-transparent p-0 placeholder-transparent focus:border-transparent focus:outline-none focus:ring-0 sm:text-sm"
+                                            />
+                                            <span
+                                                className="absolute start-3 top-3 -translate-y-1/2 text-xs text-gray-700 transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-sm peer-focus:top-3 peer-focus:text-xs"
+                                            >
+                                                Session Name
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <div>
+                                        <span className="block text-sm font-medium text-gray-700">Session Type:</span>
+                                        <div className="mt-2 flex space-x-4">
+                                            <label className="flex cursor-pointer justify-between gap-4 rounded-lg border border-gray-100 bg-white p-4 text-sm font-medium shadow-sm hover:border-gray-200 has-[:checked]:border-blue-500 has-[:checked]:ring-1 has-[:checked]:ring-blue-500">
+                                                <input
+                                                    type="radio"
+                                                    value="1to1"
+                                                    checked={sessionType === '1to1'}
+                                                    onChange={() => setSessionType('1to1')}
+                                                    className="size-5 border-gray-300 text-blue-500"
+                                                />
+                                                <span className="ml-2">1 to 1 Session</span>
+                                            </label>
+                                            <label className="flex cursor-pointer justify-between gap-4 rounded-lg border border-gray-100 bg-white p-4 text-sm font-medium shadow-sm hover:border-gray-200 has-[:checked]:border-blue-500 has-[:checked]:ring-1 has-[:checked]:ring-blue-500">
+                                                <input
+                                                    type="radio"
+                                                    value="conference"
+                                                    checked={sessionType === 'conference'}
+                                                    onChange={() => setSessionType('conference')}
+                                                    className="size-5 border-gray-300 text-blue-500"
+                                                />
+                                                <span className="ml-2">Conference Mode</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        className="inline-flex items-center rounded bg-indigo-600 px-8 py-3 text-sm font-medium text-white transition hover:scale-110 hover:shadow-xl focus:outline-none focus:ring active:bg-indigo-500"
+                                        onClick={handleCreateSession}
+                                    >
+                                        <FiPlus className="mr-2" /> Create Session
+                                    </button>
+                                </div>
+                            </div>
+                            <span className="relative flex justify-center">
+                                <div
+                                    className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-transparent bg-gradient-to-r from-transparent via-gray-500 to-transparent opacity-75"
+                                ></div>
+                                <span className="relative z-10 bg-white px-6">Or</span>
+                            </span>
+                            <h1 className="text-2xl font-bold mb-6">Join a Session</h1>
+                            <div className="space-y-6">
+                                <div>
+                                    <label
+                                        htmlFor="sessionId"
+                                        className="relative block overflow-hidden rounded-md border border-gray-200 px-3 pt-3 shadow-sm focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600"
+                                    >
+                                        <input
+                                            type="text"
+                                            id="sessionId"
+                                            value={joinSessionId}
+                                            onChange={(e) => setJoinSessionId(e.target.value)}
+                                            placeholder="Enter session ID"
+                                            className="peer h-8 w-full border-none bg-transparent p-0 placeholder-transparent focus:border-transparent focus:outline-none focus:ring-0 sm:text-sm"
+                                        />
+                                        <span
+                                            className="absolute start-3 top-3 -translate-y-1/2 text-xs text-gray-700 transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-sm peer-focus:top-3 peer-focus:text-xs"
+                                        >
+                                            Session ID
+                                        </span>
+                                    </label>
+                                </div>
+                                <button
+                                    type="submit"
+                                    className="inline-flex items-center rounded bg-green-600 px-8 py-3 text-sm font-medium text-white transition hover:scale-110 hover:shadow-xl focus:outline-none focus:ring active:bg-green-500"
+                                    onClick={handleJoinSession}
+                                >
+                                    <FiLogIn className="mr-2" /> Join Session
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </main>
             </div>
-
-            <Separator.Root style={{ height: '1px', backgroundColor: 'gray', margin: '20px 0' }} />
-
-            <div style={{ flex: 1 }}>
-                <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' }}>Join a Session</h1>
-                <Form.Root onSubmit={handleJoinSession}>
-                    <Form.Field name="sessionId">
-                        <Form.Label>Session ID</Form.Label>
-                        <Form.Control asChild>
-                            <input
-                                type="text"
-                                value={joinSessionId}
-                                onChange={(e) => setJoinSessionId(e.target.value)}
-                                placeholder="Enter session ID"
-                                style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
-                            />
-                        </Form.Control>
-                    </Form.Field>
-                    <Form.Submit asChild>
-                        <Button style={{ display: 'flex', alignItems: 'center' }}>
-                            <FiLogIn style={{ marginRight: '5px' }} /> Join Session
-                        </Button>
-                    </Form.Submit>
-                </Form.Root>
-            </div>
-        </div>
+        </section>
     );
 };
 

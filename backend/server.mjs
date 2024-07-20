@@ -93,13 +93,6 @@ io.on('connection', (socket) => {
                 return;
             }
     
-            const clientCount = await redis.scard(`session:${sessionId}:clients`);
-            
-            if (record.sessionType === '1to1' && clientCount >= 2) {
-                callback({ success: false, message: 'This session is full' });
-                return;
-            }
-            
             await redis.sadd(`session:${sessionId}:clients`, clientId);
             await redis.set(`session:${sessionId}:nickname:${clientId}`, nickname);
             
@@ -118,16 +111,17 @@ io.on('connection', (socket) => {
             io.to(sessionId).emit('client-update', clients);
             io.to(sessionId).emit('notification', `${nickname} has joined the session.`);
     
+            if (!isCreator) {
+                socket.to(sessionId).emit('client-joined', { clientId, nickname });
+            }
+    
             console.log(`Successfully joined session: ${sessionId}`);
-            callback({ success: true, isCreator });
+            callback({ success: true, isCreator, sessionType: record.sessionType });
         } catch (error) {
             console.error('Error joining session:', error);
             callback({ success: false, message: 'Error joining session' });
         }
     });
-
-
-
 
     socket.on('expire-session', async ({ sessionId }) => {
         try {
@@ -142,7 +136,7 @@ io.on('connection', (socket) => {
 
     socket.on('join-success', (data) => {
         console.log('Successfully joined session:', data);
-        // setState(data);
+        setState(data);
     });
 
     // Handle signaling data
@@ -171,6 +165,7 @@ io.on('connection', (socket) => {
         io.to(sessionId).emit('chat-message', { sender, message });
         await redis.rpush(`session:${sessionId}:messages`, JSON.stringify({ sender, message }));
     });
+
 
     // Handle end call by admin
     socket.on('end-call', async ({ sessionId, userId }) => {

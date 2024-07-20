@@ -113,10 +113,11 @@ router.post('/:sessionId/join', async (req, res) => {
 
         const clientCount = await redis.scard(`session:${sessionId}:clients`);
         const sessionType = await redis.get(`session:${sessionId}:type`);
-
+        
         if (sessionType === '1to1' && clientCount >= 2) {
-            return res.status(400).json({ error: 'This session is full' });
-        }
+            callback({ success: false, message: 'This session is full' });
+            return;
+        }        
 
         // Check if creatorId is already set
         const creatorId = await redis.get(`session:${sessionId}:creatorId`);

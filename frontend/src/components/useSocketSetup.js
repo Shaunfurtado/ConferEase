@@ -8,7 +8,7 @@ const useSocketSetup = (sessionId, nickname, clientId) => {
 
     useEffect(() => {
         socketRef.current = io('http://localhost:5000');
-        
+
         socketRef.current.on('chat-message', handleReceiveMessage);
         socketRef.current.on('client-update', handleClientUpdate);
         socketRef.current.on('session-status', handleSessionStatus);
@@ -37,6 +37,7 @@ const useSocketSetup = (sessionId, nickname, clientId) => {
     const handleSessionFull = () => {
         alert('This session is full. Cannot join.');
         window.location.href = '/';
+        window.location.reload();
     };
 
     const handleCreatorSet = (creatorId) => {

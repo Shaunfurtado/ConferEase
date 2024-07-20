@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+// frontend\src\pages\Session.jsx
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
@@ -6,6 +7,10 @@ import useSocketSetup from '../components/useSocketSetup';
 import useWebRTC from '../components/useWebRTC';
 import ChatComponent from '../components/ChatComponent';
 import NicknameModal from '../components/NicknameModal';
+import { CiMicrophoneOn, CiMicrophoneOff  } from "react-icons/ci";
+import { TbCamera, TbCameraOff  } from "react-icons/tb";
+import { IoIosCloseCircleOutline } from 'react-icons/io';
+import { PiClipboardText } from "react-icons/pi";
 
 const Session = () => {
     const { sessionId } = useParams();
@@ -15,10 +20,14 @@ const Session = () => {
     const [isCreator, setIsCreator] = useState(false);
     const [clientId, setClientId] = useState('');
     const [clients, setClients] = useState([]);
+    const [alertMessage, setAlertMessage] = useState(null);
     const [sessionStatus, setSessionStatus] = useState('active');
+    const [cameraEnabled, setCameraEnabled] = useState(true);
+    const [micEnabled, setMicEnabled] = useState(true);
     const [localStream, setLocalStream] = useState(null);
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
+    const [clientCount, setClientCount] = useState(0);
     const sessionUrl = `${window.location.origin}/session/${sessionId}`;
 
 
@@ -39,15 +48,16 @@ const Session = () => {
                 console.error('Error accessing media devices.', error);
             }
         };
-
+    
         initSession();
-
+    
         return () => {
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
             }
         };
     }, [location.state]);
+    
 
     useEffect(() => {
         if (remoteStream && remoteVideoRef.current) {
@@ -66,10 +76,12 @@ const Session = () => {
             try {
                 const response = await axios.get(`http://localhost:5000/api/sessions/${sessionId}/status`);
                 if (response.data.status === 'expired') {
-                    alert('This session has expired.');
+                    setAlertMessage('This session has expired.');
+                    window.location.href = '/';
                 }
             } catch (error) {
                 console.error('Error checking session status:', error);
+                setAlertMessage('Error checking session status. Please try again.');
             }
         };
     
@@ -78,11 +90,34 @@ const Session = () => {
         if (socketRef.current) {
             socketRef.current.on('session-status', (status) => {
                 if (status === 'expired') {
-                    alert('This session has expired.');
+                    setAlertMessage('This session has expired.');
                 }
             });
         }
     }, [sessionId, socketRef]);
+    
+    useEffect(() => {
+        if (socketRef.current) {
+            socketRef.current.on('client-update', (clients) => {
+                setClients(clients);
+                setClientCount(clients.length);
+            });
+    
+            socketRef.current.on('session-full', () => {
+                setAlertMessage('This session is full. You will be redirected to the home page.');
+                setTimeout(() => window.location.href = '/', 3000);
+            });
+        }
+    
+        return () => {
+            const currentSocketRef = socketRef.current;
+            if (currentSocketRef) {
+                currentSocketRef.off('session-full');
+                currentSocketRef.off('client-update');
+            }
+        };
+    }, [socketRef]);
+    
 
     const joinSession = async () => {
         try {
@@ -91,107 +126,211 @@ const Session = () => {
                     setIsModalOpen(false);
                     setIsCreator(response.isCreator);
                 } else {
-                    alert(response.message);
-                    window.location.href = '/';
+                    setAlertMessage(response.message);
+                    if (response.message === 'This session is full') {
+                        window.location.href = '/';
+                    }
                 }
             });
         } catch (error) {
             console.error('Error joining session:', error);
-            alert('Error joining session. Please try again.');
+            setAlertMessage('Error joining session. Please try again.');
         }
     };
+    
 
     const handleCopyUrl = () => {
         const joinUrl = `${sessionUrl}`;
         const message = `Join this session: ${joinUrl}`;
         const data = `${nickname} has invited you to join the session.\n\n Session ID is : ${sessionId}\n\n${message}`;
         navigator.clipboard.writeText(data);
-        alert('Session URL copied to clipboard');
+        setAlertMessage('Session URL copied to clipboard');
+    };   
+    const handleCopyId = () => {
+        const data = `${sessionId}`;
+        navigator.clipboard.writeText(data);
+        setAlertMessage('Session ID copied to clipboard');
+    };   
+
+    const toggleCamera = () => {
+        if (localStream) {
+            localStream.getVideoTracks().forEach(track => {
+                track.enabled = !track.enabled;
+                setCameraEnabled(track.enabled);
+            });
+        }
+    };
+
+    const toggleMic = () => {
+        if (localStream) {
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = !track.enabled;
+                setMicEnabled(track.enabled);
+            });
+        }
     };
 
     return (
-        <div className="flex flex-col md:flex-row items-center justify-center h-screen bg-gray-100">
-            <NicknameModal 
-                isOpen={isModalOpen} 
-                setIsOpen={setIsModalOpen}
-                nickname={nickname}
-                setNickname={setNickname}
-                joinSession={joinSession}
-            />
-
-            {/* Video Call Section */}
-            <div className="bg-white p-6 rounded shadow-md w-full md:w-3/4 max-w-md">
-                <h1 className="text-2xl font-bold mb-4">Session: {sessionId}</h1>
-                <div className="flex flex-col items-center space-y-4">
+        <section className="h-screen w-screen overflow-hidden">
+          <div className="h-full w-full p-2 sm:p-4">
+            <ul className="h-full grid grid-cols-1 gap-2 lg:grid-cols-3 lg:grid-rows-2">
+              {/* Video Call Section */}
+              <li className="lg:col-span-2 lg:row-span-2">
+                <div className="group relative bg-white p-2 rounded shadow-md w-full h-full overflow-auto">
+                  <h1 className="text-xl font-bold mb-2">Session: {sessionId}  &nbsp;
+                    <button onClick={handleCopyId} className="inline-block rounded bg-gray-800 px-2 py-2 text-base font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring active:bg-green-500"
+                    ><PiClipboardText />
+                    </button></h1>
+                  <p className="text-sm mb-2">Participants: {clientCount}</p>
+                  <div className="flex flex-col items-center space-y-2">
                     {/* Local Video */}
-                    <div className="w-full">
-                        <div className="text-lg font-semibold mb-2">
-                            {nickname} (You)
+                    <div className="relative w-3/5 group">
+                      <div className="text-sm font-semibold mb-1">
+                        {nickname} (You)
+                      </div>
+                      <video
+                        ref={localVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full aspect-video object-cover border rounded"
+                      ></video>
+                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={toggleCamera}
+                            className="p-1 rounded-full bg-white text-gray-900 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            {cameraEnabled ? <TbCamera /> : <TbCameraOff />}
+                          </button>
+                          <button
+                            onClick={toggleMic}
+                            className="p-1 rounded-full bg-white text-gray-900 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            {micEnabled ? <CiMicrophoneOn /> : <CiMicrophoneOff />}
+                          </button>
                         </div>
-                        <video 
-                            ref={localVideoRef}
-                            autoPlay 
-                            playsInline 
-                            muted
-                            className="w-full aspect-video object-cover border rounded"
-                        ></video>
+                      </div>
                     </div>
-                    
+      
                     {/* Remote Video */}
-                    <div className="w-full">
-                        <div className="text-lg font-semibold mb-2">
-                            Remote User
-                        </div>
-                        <video 
-                            ref={remoteVideoRef}
-                            autoPlay 
-                            playsInline 
-                            className="w-full aspect-video object-cover border rounded"
-                        ></video>
+                    <div className="w-3/5">
+                      <div className="text-sm font-semibold mb-1">
+                        {isCreator ? clients[1]?.nickname : (clients.length > 0 && clients[0]?.nickname)}
+                      </div>
+                      <video
+                        ref={remoteVideoRef}
+                        autoPlay
+                        playsInline
+                        className="w-full aspect-video object-cover border rounded"
+                      ></video>
                     </div>
-                </div>
-                
-                <div className="mt-6 space-y-4">
-                    <button 
-                        onClick={handleStartCall} 
-                        className="bg-blue-500 text-white py-2 px-4 rounded w-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                  </div>
+      
+                  <div className="mt-2 mx-72 space-x-12">
+                    <button
+                      onClick={handleStartCall}
+                      className="inline-block rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring active:bg-indigo-500"
                     >
-                        Start Call
+                      Start Call
                     </button>
-                    <button 
-                        onClick={handleCopyUrl} 
-                        className="bg-green-500 text-white py-2 px-4 rounded w-full hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+                    <button
+                      onClick={handleCopyUrl}
+                      className="inline-block rounded bg-green-600 px-2 py-1 text-xs font-medium text-white transition hover:bg-green-700 focus:outline-none focus:ring active:bg-green-500"
                     >
-                        Copy Session URL
+                      Copy URL
                     </button>
                     {isCreator ? (
-                        <button 
-                            onClick={handleEndCall} 
-                            className="bg-red-500 text-white py-2 px-4 rounded w-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-                        >
-                            End Call
-                        </button>
+                      <button
+                        onClick={handleEndCall}
+                        className="inline-block rounded bg-red-600 px-2 py-1 text-xs font-medium text-white transition hover:bg-red-700 focus:outline-none focus:ring active:bg-red-500"
+                      >
+                        End Call
+                      </button>
                     ) : (
-                        <button 
-                            onClick={handleLeaveCall} 
-                            className="bg-red-500 text-white py-2 px-4 rounded w-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-                        >
-                            Leave Call
-                        </button>
+                      <button
+                        onClick={handleLeaveCall}
+                        className="inline-block rounded bg-red-600 px-2 py-1 text-xs font-medium text-white transition hover:bg-red-700 focus:outline-none focus:ring active:bg-red-500"
+                      >
+                        Leave Call
+                      </button>
                     )}
+                  </div>
                 </div>
+              </li>
+      
+              {/* Chat Section */}
+              <li className="overflow-hidden rounded-lg border border-gray-200">
+                <ChatComponent
+                  messages={messages}
+                  newMessage={newMessage}
+                  setNewMessage={setNewMessage}
+                  handleSendMessage={handleSendMessage}
+                  nickname={nickname}
+                />
+              </li>
+      
+              {/* Clients List Section */}
+              <li className="overflow-hidden rounded-lg border border-gray-200">
+                <h2 className="text-lg font-bold p-2">Participants</h2>
+                <div className="max-h-40 overflow-y-auto">
+                  <table className="w-full divide-y divide-gray-200 bg-white text-sm">
+                    <thead className="sticky top-0 bg-white">
+                      <tr>
+                        <th className="px-2 py-1 font-medium text-gray-900 text-left">No.</th>
+                        <th className="px-2 py-1 font-medium text-gray-900 text-left">Name</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {clients.map((client, index) => (
+                        <tr key={client.clientId}>
+                          <td className="px-2 py-1 font-medium text-gray-900">{index + 1}</td>
+                          <td className="px-2 py-1 text-gray-700">{client.nickname}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </li>
+            </ul>
+          </div>
+      
+          {/* Nickname Modal and Alert */}
+          <NicknameModal
+            isOpen={isModalOpen}
+            setIsOpen={setIsModalOpen}
+            nickname={nickname}
+            setNickname={setNickname}
+            joinSession={joinSession}
+          />
+          {alertMessage && (
+            <div role="alert" className="fixed top-4 right-4 z-50 rounded-xl border border-gray-100 bg-white p-2 shadow-lg max-w-xs">
+              <div className="flex items-start gap-2">
+                <div className="flex-1">
+                  <strong className="block font-medium text-gray-900 text-sm">Alert</strong>
+                  <p className="mt-1 text-xs text-gray-700">{alertMessage}</p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-700"
+                      onClick={() => setAlertMessage(null)}
+                    >
+                      Ok
+                    </button>
+                  </div>
+                </div>
+                <button
+                  className="text-gray-500 transition hover:text-gray-600"
+                  onClick={() => setAlertMessage(null)}
+                >
+                  <span className="sr-only">Dismiss popup</span>
+                  <IoIosCloseCircleOutline />
+                </button>
+              </div>
             </div>
-
-            {/* Chat Section */}
-            <ChatComponent 
-                messages={messages}
-                newMessage={newMessage}
-                setNewMessage={setNewMessage}
-                handleSendMessage={handleSendMessage}
-                nickname={nickname}
-            />
-        </div>
-    );
+          )}
+        </section>
+      );
+      
 };
 
 export default Session;
