@@ -33,8 +33,8 @@ Experience secure and private video conferencing like never before. Our platform
 
 1. Clone the repository:
     ```sh
-    git clone https://github.com/yourusername/anonymous-conference-platform.git
-    cd anonymous-conference-platform
+    git clone https://github.com/Shaunfurtado/ConferEase.git
+    cd ConferEase
     ```
 
 2. Build and start the containers:
