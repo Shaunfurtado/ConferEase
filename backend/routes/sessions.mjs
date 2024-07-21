@@ -15,7 +15,7 @@ const adminPassword = 'vWgm4fuhpssyYJL';
 async function authenticateAdmin() {
     try {
         const authData = await pb.admins.authWithPassword(adminEmail, adminPassword);
-        console.log('Admin authenticated successfully');
+        console.log('Session: Admin authenticated successfully');
     } catch (error) {
         console.error('Error authenticating admin:', error);
         throw new Error('Authentication failed');

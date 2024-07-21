@@ -16,7 +16,7 @@ app.use('/api/sessions', sessionRoutes);
 const server = http.createServer(app);
 const io = new SocketIo(server, {
     cors: {
-        origin: "http://localhost:5173",
+        origin: "http://localhost:5174",
         methods: ["GET", "POST"]
     }
 });
@@ -43,7 +43,7 @@ async function authenticateAdminWithRetry(maxRetries = 3, delay = 1000) {
     for (let i = 0; i < maxRetries; i++) {
         try {
             await pb.admins.authWithPassword(adminEmail, adminPassword);
-            console.log('Admin authenticated successfully');
+            console.log('Server: Admin authenticated successfully');
             return;
         } catch (error) {
             if (i === maxRetries - 1) {
