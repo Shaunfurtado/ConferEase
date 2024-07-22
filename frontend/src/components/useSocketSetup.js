@@ -10,11 +10,7 @@ const useSocketSetup = (sessionId, nickname, clientId) => {
         socketRef.current = io('http://localhost:5000');
 
         socketRef.current.on('chat-message', handleReceiveMessage);
-        socketRef.current.on('client-update', handleClientUpdate);
-        socketRef.current.on('session-status', handleSessionStatus);
         socketRef.current.on('session-full', handleSessionFull);
-        socketRef.current.on('creator-set', handleCreatorSet);
-
         return () => {
             if (socketRef.current) {
                 socketRef.current.disconnect();
@@ -26,22 +22,11 @@ const useSocketSetup = (sessionId, nickname, clientId) => {
         setMessages((prevMessages) => [...prevMessages, messageData]);
     };
 
-    const handleClientUpdate = (updatedClients) => {
-        // Handle client update
-    };
-
-    const handleSessionStatus = (status) => {
-        // Handle session status update
-    };
 
     const handleSessionFull = () => {
         alert('This session is full. Cannot join.');
         window.location.href = '/';
         window.location.reload();
-    };
-
-    const handleCreatorSet = (creatorId) => {
-        // Handle creator set
     };
 
     const handleSendMessage = () => {
