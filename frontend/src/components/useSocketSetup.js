@@ -7,7 +7,7 @@ const useSocketSetup = (sessionId, nickname, clientId) => {
     const [newMessage, setNewMessage] = useState('');
 
     useEffect(() => {
-        socketRef.current = io('https://righteous-skinny-mandevilla.glitch.me');
+        socketRef.current = io('http://localhost:5000');
 
         socketRef.current.on('chat-message', handleReceiveMessage);
         socketRef.current.on('session-full', handleSessionFull);
