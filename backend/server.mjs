@@ -1,9 +1,10 @@
-// backend\server.mjs
+// backend/server.mjs
+import 'dotenv/config';
 import express from 'express';
 import http from 'http';
 import { Server as SocketIo } from 'socket.io';
 import cors from 'cors';
-import sessionRoutes from './routes/sessions.mjs'; 
+import sessionRoutes from './routes/sessions.mjs';
 import Redis from 'ioredis';
 import PocketBase from 'pocketbase';
 
@@ -16,19 +17,44 @@ app.use('/api/sessions', sessionRoutes);
 const server = http.createServer(app);
 const io = new SocketIo(server, {
     cors: {
-        origin: "http://localhost:5174",
+        origin: "*",
         methods: ["GET", "POST"]
     }
 });
 
-const redis = new Redis({ host: process.env.REDIS_HOST || 'redis', port: process.env.REDIS_PORT || 6379 });
-const redisSub = new Redis({ host: process.env.REDIS_HOST || 'redis', port: process.env.REDIS_PORT || 6379 });
+const redis = new Redis({
+    host: process.env.REDIS_HOST,
+    port: process.env.REDIS_PORT,
+    password: process.env.REDIS_PASSWORD
+});
 
-const pb = new PocketBase('https://conferease.pockethost.io');
-const adminEmail = 'shaunf1801@gmail.com';
-const adminPassword = 'vWgm4fuhpssyYJL';
-pb.autoCancellation(false); // Disable auto-cancellation
-pb.timeout = 30000; // Set timeout to 30 seconds (adjust as needed)
+const redisSub = new Redis({
+    host: process.env.REDIS_HOST,
+    port: process.env.REDIS_PORT,
+    password: process.env.REDIS_PASSWORD
+});
+
+redis.on('connect', () => {
+    console.log('Server: Connected to Redis');
+});
+
+redis.on('error', (err) => {
+    console.error('Server: Redis Client Error', err);
+});
+
+redisSub.on('connect', () => {
+    console.log('Connected to Redis subscriber');
+});
+
+redisSub.on('error', (err) => {
+    console.error('Redis Subscriber Error', err);
+});
+
+const pb = new PocketBase(process.env.POCKETBASE_URL);
+const adminEmail = process.env.ADMIN_EMAIL;
+const adminPassword = process.env.ADMIN_PASSWORD;
+pb.autoCancellation(false);
+pb.timeout = 30000;
 
 async function authenticateAdmin() {
     try {

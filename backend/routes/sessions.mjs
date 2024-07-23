@@ -2,14 +2,29 @@
 import express from 'express';
 import PocketBase from 'pocketbase';
 import Redis from 'ioredis';
+import 'dotenv/config';
 
 const router = express.Router();
-const pb = new PocketBase('https://conferease.pockethost.io');
-const redis = new Redis({ host: process.env.REDIS_HOST || 'redis', port: process.env.REDIS_PORT || 6379 });
+const pb = new PocketBase(process.env.POCKETBASE_URL);
+
+// Configure Redis client using ioredis
+const redis = new Redis({
+    host: process.env.REDIS_HOST,
+    port: process.env.REDIS_PORT,
+    password: process.env.REDIS_PASSWORD
+});
+
+redis.on('connect', () => {
+    console.log('Session: Connected to Redis');
+});
+
+redis.on('error', (err) => {
+    console.error('Session: Redis Client Error', err);
+});
 
 // Admin credentials
-const adminEmail = 'shaunf1801@gmail.com';
-const adminPassword = 'vWgm4fuhpssyYJL';
+const adminEmail = process.env.ADMIN_EMAIL;
+const adminPassword = process.env.ADMIN_PASSWORD;
 
 // Authenticate admin
 async function authenticateAdmin() {
