@@ -15,14 +15,14 @@ const CreateSession = () => {
     const socketRef = useRef();
 
     useEffect(() => {
-        socketRef.current = io('http://localhost:5000');
+        socketRef.current = io('https://righteous-skinny-mandevilla.glitch.me');
     }, []);
 
     const handleCreateSession = async (event) => {
         event.preventDefault();
         try {
             const userId = uuidv4();
-            const response = await axios.post('http://localhost:5000/api/sessions/create-session', {
+            const response = await axios.post('https://righteous-skinny-mandevilla.glitch.me/api/sessions/create-session', {
                 nickname,
                 userId,
                 sessionType,
