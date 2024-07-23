@@ -4,7 +4,7 @@ import express from 'express';
 import http from 'http';
 import { Server as SocketIo } from 'socket.io';
 import cors from 'cors';
-import sessionRoutes from './routes/sessions.mjs';
+import sessionRoutes from './routes/sessions.js';
 import Redis from 'ioredis';
 import PocketBase from 'pocketbase';
 
