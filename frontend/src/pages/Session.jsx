@@ -74,7 +74,7 @@ const Session = () => {
     useEffect(() => {
         const checkSessionStatus = async () => {
             try {
-                const response = await axios.get(`http://localhost:5000/api/sessions/${sessionId}/status`);
+                const response = await axios.get(`https://conferease-backend.toystack.dev/api/sessions/${sessionId}/status`);
                 if (response.data.status === 'expired') {
                     setAlertMessage('This session has expired.');
                     window.location.href = '/';
