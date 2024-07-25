@@ -69,7 +69,10 @@ Experience secure and private video conferencing like never before. Our platform
 
 ## Docker Configuration
 
-### Dockerfile for Frontend
+### 
+
+<details>
+<summary><code>Dockerfile for Frontend</code></summary>
 
 ```Dockerfile
 # Use the official Node.js 18 image
@@ -93,8 +96,11 @@ EXPOSE 5174
 # Start the Vite development server
 CMD ["npm", "run", "dev"]
 ```
+</details>
 
-### Dockerfile for Backend
+<details>
+<summary><code>Dockerfile for Backend</code></summary>
+
 
 ```Dockerfile
 # Use the official Node.js 18 image
@@ -118,8 +124,10 @@ EXPOSE 5000
 # Run the backend server
 CMD ["node", "--experimental-modules", "server.mjs"]
 ```
+</details>
 
-### Docker Compose Configuration
+<details>
+<summary><code>Docker Compose Configuration</code></summary>
 
 ```yaml
 version: '3.8'
@@ -164,6 +172,7 @@ services:
 volumes:
   redis-data:
 ```
+</details>
 
 ## Contributing
 
