@@ -128,6 +128,7 @@ const Session = () => {
                 } else {
                     setAlertMessage(response.message);
                     if (response.message === 'This session is full') {
+                      setAlertMessage('This session is full. You will be redirected to the home page.');
                         window.location.href = '/';
                     }
                 }
