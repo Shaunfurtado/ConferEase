@@ -9,6 +9,7 @@ Experience secure and private video conferencing like never before. Our platform
 - **Secure Chat**: Encrypted chat to keep your conversations private.
 - **Easy Session Management**: Simple controls for starting, joining, and managing sessions.
 
+## Live Demo: [ConferEase](https://conferease.vercel.app/)
 ## Screenshots
 
 ![img](./Screenshots/scr1.webp)

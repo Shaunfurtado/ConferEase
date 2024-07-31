@@ -11,12 +11,38 @@ const CreateSession = () => {
     const [joinSessionId, setJoinSessionId] = useState('');
     const [sessionType, setSessionType] = useState('1to1'); 
     const [alertMessage, setAlertMessage] = useState(null);
+    const [retryCount, setRetryCount] = useState(0);
+    const maxRetries = 2;
     const navigate = useNavigate();
     const socketRef = useRef();
 
     useEffect(() => {
-        socketRef.current = io('https://conferease-backend.toystack.dev/');
-    }, []);
+        const initializeSocket = () => {
+            socketRef.current = io('https://conferease-backend.toystack.dev/');
+
+            socketRef.current.on('connect_error', () => {
+                setAlertMessage('Server is down. Please try again later.');
+                
+                if (retryCount < maxRetries) {
+                    setRetryCount(prevCount => prevCount + 1);
+                } else {
+                    socketRef.current.disconnect();
+                }
+            });
+
+            socketRef.current.on('disconnect', () => {
+                setAlertMessage('Disconnected from server. Please try again later.');
+            });
+        };
+
+        initializeSocket();
+
+        return () => {
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+            }
+        };
+    }, [retryCount]);
 
     const handleCreateSession = async (event) => {
         event.preventDefault();
@@ -32,7 +58,7 @@ const CreateSession = () => {
             navigate(`/session/${sessionId}`, { state: { userId, nickname } });
         } catch (error) {
             setAlertMessage('Error creating session. Please try again.');
-            console.error('Error creating session', error);
+            // console.error('Error creating session', error);
         }
     };
 
@@ -41,10 +67,10 @@ const CreateSession = () => {
         if (joinSessionId) {
             try {
                 const userId = uuidv4();
-                console.log('Joining session with userId:', userId, 'and nickname:', nickname);
+                // console.log('Joining session with userId:', userId, 'and nickname:', nickname);
     
                 socketRef.current.emit('join-session', { sessionId: joinSessionId, clientId: userId, nickname }, (response) => {
-                    console.log('Socket join-session response:', response);
+                    // console.log('Socket join-session response:', response);
                     if (response.success) {
                         navigate(`/session/${joinSessionId}`, { 
                             state: { 
@@ -62,7 +88,7 @@ const CreateSession = () => {
                 });
             } catch (error) {
                 setAlertMessage('Error joining session. Please try again.');
-                console.error('Error joining session:', error);
+                // console.error('Error joining session:', error);
             }
         } else {
             setAlertMessage('Please provide a session ID.');
@@ -116,7 +142,14 @@ const CreateSession = () => {
                         <form className="space-y-8">
                             {/* Create a Session */}
                             <div>
+                            <div role="alert" className="rounded border-bg-500 bg-bg-50 p-2">
+                                <strong className="block font-medium text-bg-800"> Check out the Project:</strong>
+                                <p className="mt-2 text-sm text-black-700">
+                                    Self Hosting: <a href="https://github.com/Shaunfurtado/ConferEase/" target='_blank' className="text-blue-500 underline">GitHub</a> or Check Live: <a href="https://shaunfurtado.is-a.dev/ConferEase/Screenshots/scr3.gif" target='_blank' className="text-blue-500 underline">Demo</a>
+                                </p>
+                                </div>
                                 <h1 className="text-2xl font-bold mb-6">Create a Session</h1>
+                                
                                 <div className="space-y-6">
                                     <div>
                                         <label
