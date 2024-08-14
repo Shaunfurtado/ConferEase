@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 
-const useSocketSetup = (sessionId, nickname, clientId) => {
+const useSocketSetup = (sessionId, nickname) => {
     const socketRef = useRef();
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
 
     useEffect(() => {
-        socketRef.current = io('https://conferease-backend.toystack.dev/');
+        const serverUrl = import.meta.env.VITE_SERVER_URL;
+        socketRef.current = io(serverUrl);
 
         socketRef.current.on('chat-message', handleReceiveMessage);
         socketRef.current.on('session-full', handleSessionFull);

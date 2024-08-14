@@ -18,7 +18,9 @@ const CreateSession = () => {
 
     useEffect(() => {
         const initializeSocket = () => {
-            socketRef.current = io('https://conferease-backend.toystack.dev/');
+            const serverUrl = import.meta.env.VITE_SERVER_URL;
+
+            socketRef.current = io(serverUrl);
 
             socketRef.current.on('connect_error', () => {
                 setAlertMessage('Server is down. Please try again later.');
@@ -48,7 +50,8 @@ const CreateSession = () => {
         event.preventDefault();
         try {
             const userId = uuidv4();
-            const response = await axios.post('https://conferease-backend.toystack.dev/api/sessions/create-session', {
+            const serverUrl = import.meta.env.VITE_SERVER_URL;
+            const response = await axios.post(`${serverUrl}/api/sessions/create-session`, {
                 nickname,
                 userId,
                 sessionType,

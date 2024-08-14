@@ -21,7 +21,6 @@ const Session = () => {
     const [clientId, setClientId] = useState('');
     const [clients, setClients] = useState([]);
     const [alertMessage, setAlertMessage] = useState(null);
-    const [sessionStatus, setSessionStatus] = useState('active');
     const [cameraEnabled, setCameraEnabled] = useState(true);
     const [micEnabled, setMicEnabled] = useState(true);
     const [localStream, setLocalStream] = useState(null);
@@ -31,8 +30,8 @@ const Session = () => {
     const sessionUrl = `${window.location.origin}/session/${sessionId}`;
 
 
-    const { socketRef, messages, setMessages, newMessage, setNewMessage, handleSendMessage } = useSocketSetup(sessionId, nickname, clientId);
-    const { peerRef, remoteStream, handleStartCall, handleEndCall, handleLeaveCall } = useWebRTC(socketRef, sessionId, clientId, localStream);
+    const { socketRef, messages, newMessage, setNewMessage, handleSendMessage } = useSocketSetup(sessionId, nickname, clientId);
+    const { remoteStream, handleStartCall, handleEndCall, handleLeaveCall } = useWebRTC(socketRef, sessionId, clientId, localStream);
 
     useEffect(() => {
         const initSession = async () => {
@@ -74,7 +73,8 @@ const Session = () => {
     useEffect(() => {
         const checkSessionStatus = async () => {
             try {
-                const response = await axios.get(`https://conferease-backend.toystack.dev/api/sessions/${sessionId}/status`);
+              const serverUrl = import.meta.env.VITE_SERVER_URL;
+              const response = await axios.get(`${serverUrl}/api/sessions/${sessionId}/status`);
                 if (response.data.status === 'expired') {
                     setAlertMessage('This session has expired.');
                     window.location.href = '/';
