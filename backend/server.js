@@ -1,4 +1,4 @@
-// backend/server.mjs
+// backend/server.js
 import 'dotenv/config';
 import express from 'express';
 import http from 'http';

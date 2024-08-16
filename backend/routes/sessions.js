@@ -1,4 +1,4 @@
-// backend\routes\sessions.mjs
+// backend\routes\sessions.js
 import express from 'express';
 import PocketBase from 'pocketbase';
 import Redis from 'ioredis';
@@ -129,10 +129,15 @@ router.post('/:sessionId/join', async (req, res) => {
         const clientCount = await redis.scard(`session:${sessionId}:clients`);
         const sessionType = await redis.get(`session:${sessionId}:type`);
         
+        // Handle 1-to-1 session limit
         if (sessionType === '1to1' && clientCount >= 2) {
-            callback({ success: false, message: 'This session is full' });
-            return;
-        }        
+            return res.status(400).json({ success: false, message: 'This session is full' });
+        }
+
+        // If it's a conference session, allow multiple clients
+        if (sessionType === 'conference') {
+            // No client limit, allow joining
+        }
 
         // Check if creatorId is already set
         const creatorId = await redis.get(`session:${sessionId}:creatorId`);
@@ -155,7 +160,6 @@ router.post('/:sessionId/join', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 router.post('/:sessionId/expire', async (req, res) => {
     const { sessionId } = req.params;
