@@ -2,7 +2,7 @@
 import { Routes, Route } from 'react-router-dom';
 import CreateSession from './pages/CreateSession';
 import Session from './pages/Session';
-// import ConferenceSession from './pages/ConferenceSession';
+import ConferenceSession from './pages/ConferenceSession';
 import '@radix-ui/themes/styles.css';
 import { Theme } from '@radix-ui/themes';
 
@@ -13,7 +13,7 @@ const App = () => {
             <Routes>
                 <Route path="/" element={<CreateSession />} />
                 <Route path="/session/:sessionId" element={<Session />} />
-                {/* <Route path="/conference/:sessionId" element={<ConferenceSession />} /> */}
+                <Route path="/conference/:sessionId" element={<ConferenceSession />} />
             </Routes>
         </div>
         </Theme>

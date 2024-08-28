@@ -1,3 +1,4 @@
+//frontend\src\pages\CreateSession.jsx
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -51,14 +52,25 @@ const CreateSession = () => {
         try {
             const userId = uuidv4();
             const serverUrl = import.meta.env.VITE_SERVER_URL;
+    
+            // Assuming you have a state or prop `sessionType` to determine if it's a conference
+            const isConference = sessionType === 'conference';
+    
             const response = await axios.post(`${serverUrl}/api/sessions/create-session`, {
                 nickname,
                 userId,
                 sessionType,
                 status: 'active'
             });
+    
             const sessionId = response.data.sessionId;
-            navigate(`/session/${sessionId}`, { state: { userId, nickname } });
+    
+            // Navigate based on the session type
+            if (isConference) {
+                navigate(`/conference/${sessionId}`, { state: { userId, nickname } });
+            } else {
+                navigate(`/session/${sessionId}`, { state: { userId, nickname } });
+            }
         } catch (error) {
             setAlertMessage('Error creating session. Please try again.');
             // console.error('Error creating session', error);
@@ -70,17 +82,18 @@ const CreateSession = () => {
         if (joinSessionId) {
             try {
                 const userId = uuidv4();
-                // console.log('Joining session with userId:', userId, 'and nickname:', nickname);
     
                 socketRef.current.emit('join-session', { sessionId: joinSessionId, clientId: userId, nickname }, (response) => {
-                    // console.log('Socket join-session response:', response);
                     if (response.success) {
-                        navigate(`/session/${joinSessionId}`, { 
-                            state: { 
-                                userId, 
-                                nickname, 
-                                isCreator: response.isCreator 
-                            } 
+                        const isConference = response.sessionType === 'conference';
+                        const route = isConference ? `/conference/${joinSessionId}` : `/session/${joinSessionId}`;
+    
+                        navigate(route, {
+                            state: {
+                                userId,
+                                nickname,
+                                isCreator: response.isCreator
+                            }
                         });
                     } else {
                         setAlertMessage(response.message);
@@ -97,6 +110,7 @@ const CreateSession = () => {
             setAlertMessage('Please provide a session ID.');
         }
     };
+    
 
     return (
         <section className="bg-white min-h-screen flex flex-col">
